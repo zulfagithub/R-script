@@ -1,6 +1,5 @@
 # EdgeR Script for computing DEGs. 
 library(edgeR)
-setwd("C:\\Desktop\\For_R2\\GSE117765")
 data <- read.csv("GSE117765.csv")
 group <- factor(c(1,1,2,2,2,2))
 dge <- DGEList(counts=data,group=group)
