@@ -1,0 +1,47 @@
+library(edgeR)
+library(dplyr)
+data <- read.csv("GSE117765.csv", row.names = 1)
+
+# Check for duplicate gene names
+if (sum(duplicated(rownames(data))) > 0) {
+    cat("⚠ Found duplicated gene names! Merging duplicates...\n")
+    
+    # Sum counts for duplicated genes
+    data <- data %>%
+        group_by(Gene = rownames(.)) %>%
+        summarise_all(sum) %>%
+        column_to_rownames("Gene")
+}
+
+# Define sample groups (Adjust based on your dataset)
+group <- factor(c("Normal", "Normal", "Tumor", "Tumor", "Tumor", "Tumor"))
+
+# Create DGEList
+dge <- DGEList(counts = data, group = group)
+
+# Filter low-expression genes
+keep <- filterByExpr(dge)
+dge <- dge[keep, , keep.lib.sizes = FALSE]
+
+# Normalize using TMM
+dge <- calcNormFactors(dge, method = "TMM")
+
+# Define experimental design
+design <- model.matrix(~group)
+dge <- estimateDisp(dge, design)
+
+# Fit model & compute DEGs
+fit <- glmFit(dge, design)
+lrt <- glmLRT(fit, coef = 2)
+
+# Extract DEGs
+topGenes <- topTags(lrt, n = Inf)$table
+
+# Apply log2FC & FDR cutoff
+DEGs <- subset(topGenes, abs(logFC) > 1 & FDR < 0.05)
+
+# Save DEGs
+write.table(DEGs, file = "DEGs_edgeR_Tumor_vs_Normal.csv", sep = ",", row.names = TRUE, quote = FALSE)
+
+# Print number of significant DEGs
+print(paste("Total significant DEGs:", nrow(DEGs)))
